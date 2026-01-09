@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Post - BlogSpace</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <a href="/index.html" class="logo">
+        <span class="logo-icon">📝</span>
+        BlogSpace
+      </a>
+      <nav class="nav-links" id="nav-container">
+        <!-- Populated by JS -->
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <a href="/index.html" style="display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); margin-bottom: 24px; font-size: 0.875rem;">
+      ← Back to Posts
+    </a>
+    
+    <div id="post-container">
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading post...</p>
+      </div>
+    </div>
+
+    <div id="comments-container" style="margin-top: 48px;">
+      <!-- Comments section loaded here -->
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    var currentUser = null;
+    var postId = null;
+
+    function formatDate(dateString) {
+      return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function escapeHtml(text) {
+      var div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showAlert(message, type) {
+      var container = document.querySelector('.main-container');
+      var alertDiv = document.createElement('div');
+      alertDiv.className = 'alert alert-' + (type || 'info');
+      alertDiv.textContent = message;
+      alertDiv.style.marginBottom = '24px';
+      container.insertBefore(alertDiv, container.querySelector('a').nextSibling);
+      setTimeout(function() { alertDiv.remove(); }, 5000);
+    }
+
+    function showError(container, message) {
+      container.innerHTML = '<div class="alert alert-error">' + message + '</div>';
+    }
+
+    function updateNav(isLoggedIn, user) {
+      var nav = document.getElementById('nav-container');
+      if (isLoggedIn && user) {
+        nav.innerHTML = '<span class="user-name">Welcome, ' + escapeHtml(user.username) + '</span> ' +
+          '<a href="/dashboard.html" class="btn btn-secondary btn-small">Dashboard</a> ' +
+          '<button id="logout-btn" class="btn btn-secondary btn-small">Logout</button>';
+        document.getElementById('logout-btn').addEventListener('click', function() {
+          api.logout();
+          window.location.href = '/index.html';
+        });
+      } else {
+        nav.innerHTML = '<a href="/login.html" class="btn btn-secondary btn-small">Login</a> ' +
+          '<a href="/signup.html" class="btn btn-primary btn-small">Sign Up</a>';
+      }
+    }
+
+    function renderPost(post, isOwner) {
+      var container = document.getElementById('post-container');
+      var html = '<article class="single-post">';
+      html += '<div class="blog-meta" style="margin-bottom: 16px;">';
+      html += '<span>by ' + escapeHtml(post.authorName) + '</span>';
+      html += '<span class="blog-meta-separator"></span>';
+      html += '<span>' + formatDate(post.createdAt) + '</span>';
+      if (post.updatedAt !== post.createdAt) {
+        html += '<span class="blog-meta-separator"></span>';
+        html += '<span>Updated: ' + formatDate(post.updatedAt) + '</span>';
+      }
+      html += '</div>';
+      html += '<h1 class="single-post-title" style="font-size: 2.5rem; margin-bottom: 32px;">' + escapeHtml(post.title) + '</h1>';
+      html += '<div class="single-post-content" style="font-size: 1.125rem; line-height: 1.9;">' + escapeHtml(post.content) + '</div>';
+      
+      if (isOwner) {
+        html += '<div class="post-actions" style="margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border); display: flex; gap: 12px;">';
+        html += '<button onclick="window.location.href=\'/dashboard.html?edit=' + post._id + '\'" class="btn btn-secondary">Edit Post</button>';
+        html += '<button onclick="deletePost()" class="btn btn-danger">Delete Post</button>';
+        html += '</div>';
+      }
+      html += '</article>';
+      container.innerHTML = html;
+    }
+
+    function renderComments(comments) {
+      var container = document.getElementById('comments-container');
+      var html = '<div style="max-width: 800px; margin: 0 auto;">';
+      
+      html += '<h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 24px; color: var(--text-primary);">Comments';
+      if (comments && comments.length > 0) {
+        html += ' (' + comments.length + ')';
+      }
+      html += '</h2>';
+
+      if (comments && comments.length > 0) {
+        html += '<div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px;">';
+        comments.forEach(function(comment) {
+          var authorInitial = comment.authorName ? comment.authorName.charAt(0).toUpperCase() : 'A';
+          html += '<div class="blog-card" id="comment-' + comment._id + '" style="padding: 20px;">';
+          html += '<div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">';
+          html += '<div class="author-avatar" style="width: 40px; height: 40px; font-size: 0.875rem;">' + authorInitial + '</div>';
+          html += '<div>';
+          html += '<div class="author-name">' + escapeHtml(comment.authorName) + '</div>';
+          html += '<div style="font-size: 0.75rem; color: var(--text-muted);">' + formatDate(comment.createdAt) + '</div>';
+          html += '</div>';
+          html += '</div>';
+          html += '<p style="color: var(--text-secondary); line-height: 1.7;">' + escapeHtml(comment.text) + '</p>';
+          if (currentUser && (currentUser._id === comment.author || currentUser._id === comment.author)) {
+            html += '<button onclick="deleteComment(\'' + comment._id + '\')" class="btn btn-danger btn-small" style="margin-top: 12px;">Delete</button>';
+          }
+          html += '</div>';
+        });
+        html += '</div>';
+      } else {
+        html += '<p style="color: var(--text-muted); margin-bottom: 32px;">No comments yet. Be the first to comment!</p>';
+      }
+
+      // Add comment form if logged in
+      if (currentUser) {
+        html += '<div class="post-form-container" style="display: block;">';
+        html += '<h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 16px;">Add a Comment</h3>';
+        html += '<form id="comment-form">';
+        html += '<div class="form-group">';
+        html += '<textarea id="comment-text" class="form-input" style="min-height: 120px; resize: vertical;" placeholder="Share your thoughts..." rows="4" maxlength="1000" required></textarea>';
+        html += '</div>';
+        html += '<button type="submit" class="btn btn-primary">Post Comment</button>';
+        html += '</form></div>';
+      } else {
+        html += '<div class="post-form-container" style="display: block; text-align: center;">';
+        html += '<p style="color: var(--text-secondary);">';
+        html += '<a href="/login.html" style="color: var(--accent-color); font-weight: 600;">Login</a> to leave a comment';
+        html += '</p></div>';
+      }
+
+      html += '</div>';
+      container.innerHTML = html;
+
+      // Add form listener
+      if (currentUser) {
+        document.getElementById('comment-form').addEventListener('submit', function(e) {
+          e.preventDefault();
+          var text = document.getElementById('comment-text').value.trim();
+          if (!text) {
+            showAlert('Please enter a comment', 'error');
+            return;
+          }
+          api.addComment(postId, text).then(function() {
+            showAlert('Comment posted!', 'success');
+            loadPost();
+          }).catch(function(error) {
+            showAlert(error.message, 'error');
+          });
+        });
+      }
+    }
+
+    function loadPost() {
+      api.getPost(postId).then(function(post) {
+        var isOwner = currentUser && currentUser._id === (post.author._id || post.author);
+        renderPost(post, isOwner);
+        renderComments(post.comments || []);
+      }).catch(function(error) {
+        showError(document.getElementById('post-container'), error.message);
+      });
+    }
+
+    function deletePost() {
+      if (!confirm('Are you sure you want to delete this post?')) return;
+      api.deletePost(postId).then(function() {
+        showAlert('Post deleted!', 'success');
+        setTimeout(function() { window.location.href = '/index.html'; }, 1000);
+      }).catch(function(error) {
+        showAlert(error.message, 'error');
+      });
+    }
+
+    function deleteComment(commentId) {
+      if (!confirm('Delete this comment?')) return;
+      api.deleteComment(postId, commentId).then(function() {
+        showAlert('Comment deleted!', 'success');
+        loadPost();
+      }).catch(function(error) {
+        showAlert(error.message, 'error');
+      });
+    }
+
+    window.deletePost = deletePost;
+    window.deleteComment = deleteComment;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var urlParams = new URLSearchParams(window.location.search);
+      postId = urlParams.get('id');
+
+      if (!postId) {
+        showError(document.getElementById('post-container'), 'Post ID not found');
+        return;
+      }
+
+      auth.initAuth().then(function(isLoggedIn) {
+        currentUser = auth.getCurrentUser();
+        updateNav(isLoggedIn, currentUser);
+        loadPost();
+      });
+    });

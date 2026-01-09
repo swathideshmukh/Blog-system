@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - BlogSpace</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <a href="/index.html" class="logo">
+        <span class="logo-icon">📝</span>
+        BlogSpace
+      </a>
+      <nav class="nav-links" id="nav-container">
+        <!-- Populated by JS -->
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <div id="alert-container"></div>
+    
+    <div class="dashboard-header">
+      <h1 class="dashboard-title">My Dashboard</h1>
+      <button id="new-post-btn" class="btn btn-primary">+ New Post</button>
+    </div>
+
+    <!-- Post Form -->
+    <div id="post-form-container" class="post-form-container hidden">
+      <h2 id="form-title" style="margin-bottom: 24px; font-size: 1.25rem; font-weight: 700;">Create New Post</h2>
+      <form id="post-form">
+        <input type="hidden" id="post-id">
+        <div class="form-group">
+          <label class="form-label" for="post-title">Title</label>
+          <input type="text" id="post-title" class="form-input" placeholder="Enter post title" required maxlength="200">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="post-content">Content</label>
+          <textarea id="post-content" class="form-input" style="min-height: 200px; resize: vertical;" placeholder="Write your post content here..." required maxlength="10000"></textarea>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <button type="submit" class="btn btn-primary" id="submit-btn">Publish</button>
+          <button type="button" id="cancel-btn" class="btn btn-secondary">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Posts List -->
+    <div id="posts-container">
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading your posts...</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    var myPosts = [];
+    var isEditing = false;
+
+    function showAlert(message, type) {
+      var container = document.getElementById('alert-container');
+      container.innerHTML = '<div class="alert alert-' + (type || 'info') + '">' + message + '</div>';
+      setTimeout(function() { container.innerHTML = ''; }, 5000);
+    }
+
+    function formatDate(dateString) {
+      return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function truncate(text, maxLength) {
+      maxLength = maxLength || 150;
+      if (text.length <= maxLength) return text;
+      return text.substring(0, maxLength).trim() + '...';
+    }
+
+    function escapeHtml(text) {
+      var div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function updateNav(isLoggedIn, user) {
+      var nav = document.getElementById('nav-container');
+      if (isLoggedIn && user) {
+        nav.innerHTML = '<span class="user-name">Welcome, ' + escapeHtml(user.username) + '</span> ' +
+          '<a href="/dashboard.html" class="btn btn-secondary btn-small">Dashboard</a> ' +
+          '<button id="logout-btn" class="btn btn-secondary btn-small">Logout</button>';
+        document.getElementById('logout-btn').addEventListener('click', function() {
+          api.logout();
+          window.location.href = '/index.html';
+        });
+      } else {
+        nav.innerHTML = '<a href="/login.html" class="btn btn-secondary btn-small">Login</a> ' +
+          '<a href="/signup.html" class="btn btn-primary btn-small">Sign Up</a>';
+      }
+    }
+
+    function showEmpty(container, message) {
+      container.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><div class="empty-state-icon"></div><h3 class="empty-state-title">' + message + '</h3></div>';
+    }
+
+    function showError(container, message) {
+      container.innerHTML = '<div class="alert alert-error" style="grid-column: 1/-1;">' + message + '</div>';
+    }
+
+    function showPostForm(post) {
+      var formContainer = document.getElementById('post-form-container');
+      var newPostBtn = document.getElementById('new-post-btn');
+      
+      if (post) {
+        document.getElementById('form-title').textContent = 'Edit Post';
+        document.getElementById('submit-btn').textContent = 'Update Post';
+        document.getElementById('post-id').value = post._id;
+        document.getElementById('post-title').value = post.title;
+        document.getElementById('post-content').value = post.content;
+        isEditing = true;
+      } else {
+        document.getElementById('form-title').textContent = 'Create New Post';
+        document.getElementById('submit-btn').textContent = 'Publish';
+        document.getElementById('post-form').reset();
+        document.getElementById('post-id').value = '';
+        isEditing = false;
+      }
+
+      formContainer.classList.remove('hidden');
+      newPostBtn.classList.add('hidden');
+      formContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function hidePostForm() {
+      var formContainer = document.getElementById('post-form-container');
+      var newPostBtn = document.getElementById('new-post-btn');
+      
+      formContainer.classList.add('hidden');
+      newPostBtn.classList.remove('hidden');
+      document.getElementById('post-form').reset();
+      document.getElementById('post-id').value = '';
+      isEditing = false;
+      window.history.replaceState({}, '', '/dashboard.html');
+    }
+
+    function loadMyPosts() {
+      var container = document.getElementById('posts-container');
+      
+      api.getMyPosts().then(function(posts) {
+        myPosts = posts;
+        
+        if (posts.length === 0) {
+          showEmpty(container, "You haven't created any posts yet");
+        } else {
+          var html = '<div class="blog-grid">';
+          posts.forEach(function(post, index) {
+            var imageSeed = (index + 1);
+            var imageUrl = 'https://picsum.photos/seed/' + imageSeed + '/640/360';
+            
+            html += '<div class="blog-card" id="post-' + post._id + '">';
+            html += '<div class="blog-card-image">';
+            html += '<img src="' + imageUrl + '" alt="' + escapeHtml(post.title) + '">';
+            html += '</div>';
+            html += '<div class="blog-card-content">';
+            html += '<div class="blog-meta">';
+            html += '<span>by ' + escapeHtml(post.authorName) + '</span>';
+            html += '<span class="blog-meta-separator"></span>';
+            html += '<span>' + formatDate(post.createdAt) + '</span>';
+            html += '</div>';
+            html += '<h3 class="blog-card-title">' + escapeHtml(post.title) + '</h3>';
+            html += '<p class="blog-card-description">' + escapeHtml(truncate(post.content, 100)) + '</p>';
+            html += '<div class="post-actions" style="margin-top: 16px; display: flex; gap: 8px;">';
+            html += '<button onclick="viewPost(\'' + post._id + '\')" class="btn btn-secondary btn-small">View</button>';
+            html += '<button onclick="editPostFromDash(\'' + post._id + '\')" class="btn btn-secondary btn-small">Edit</button>';
+            html += '<button onclick="deletePostFromDash(\'' + post._id + '\')" class="btn btn-danger btn-small">Delete</button>';
+            html += '</div></div></div>';
+          });
+          html += '</div>';
+          container.innerHTML = html;
+        }
+      }).catch(function(error) {
+        showError(container, error.message);
+      });
+    }
+
+    function viewPost(postId) {
+      window.location.href = '/post.html?id=' + postId;
+    }
+
+    function editPostFromDash(postId) {
+      var post = myPosts.find(function(p) { return p._id === postId; });
+      if (post) showPostForm(post);
+    }
+
+    function deletePostFromDash(postId) {
+      if (!confirm('Are you sure you want to delete this post?')) return;
+      
+      api.deletePost(postId).then(function() {
+        showAlert('Post deleted successfully!', 'success');
+        myPosts = myPosts.filter(function(p) { return p._id !== postId; });
+        var postEl = document.getElementById('post-' + postId);
+        if (postEl) postEl.remove();
+        if (myPosts.length === 0) {
+          showEmpty(document.getElementById('posts-container'), "You haven't created any posts yet");
+        }
+      }).catch(function(error) {
+        showAlert(error.message, 'error');
+      });
+    }
+
+    window.viewPost = viewPost;
+    window.editPostFromDash = editPostFromDash;
+    window.deletePostFromDash = deletePostFromDash;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      if (!api.isAuthenticated()) {
+        window.location.href = '/login.html';
+        return;
+      }
+
+      api.getMe().then(function(user) {
+        updateNav(true, user);
+        
+        var urlParams = new URLSearchParams(window.location.search);
+        var editId = urlParams.get('edit');
+        if (editId) {
+          var post = myPosts.find(function(p) { return p._id === editId; });
+          if (post) showPostForm(post);
+        }
+        
+        loadMyPosts();
+      }).catch(function() {
+        api.logout();
+        window.location.href = '/login.html';
+      });
+
+      document.getElementById('new-post-btn').addEventListener('click', function() {
+        showPostForm();
+      });
+
+      document.getElementById('cancel-btn').addEventListener('click', function() {
+        hidePostForm();
+      });
+
+      document.getElementById('post-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        var postId = document.getElementById('post-id').value;
+        var title = document.getElementById('post-title').value.trim();
+        var content = document.getElementById('post-content').value.trim();
+        var submitBtn = document.getElementById('submit-btn');
+
+        if (!title || !content) {
+          showAlert('Please fill in all fields', 'error');
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = isEditing ? 'Updating...' : 'Publishing...';
+
+        var promise = isEditing 
+          ? api.updatePost(postId, title, content)
+          : api.createPost(title, content);
+
+        promise.then(function() {
+          showAlert('Post ' + (isEditing ? 'updated' : 'published') + ' successfully!', 'success');
+          hidePostForm();
+          loadMyPosts();
+        }).catch(function(error) {
+          showAlert(error.message, 'error');
+        }).finally(function() {
+          submitBtn.disabled = false;
+          submitBtn.textContent = isEditing ? 'Update Post' : 'Publish';
+        });
+      });
+    });
+  </script>
+</body>
+</html>
+

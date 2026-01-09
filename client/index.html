@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BlogSpace - Discover Design & Technology</title>
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="/css/style.css">
+
+  <!-- Page-specific fixes -->
+  <style>
+    /* Ensure grid always works */
+    .blog-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 24px;
+      width: 100%;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* Fixed-height image (prevents grid break) */
+    .blog-card-image {
+      height: 200px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .blog-card-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+
+    .blog-card:hover .blog-card-image img {
+      transform: scale(1.05);
+    }
+
+    .blog-meta-separator {
+      width: 4px;
+      height: 4px;
+      background: var(--text-muted);
+      border-radius: 50%;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 32px 24px;
+      margin-top: 48px;
+      border-top: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .footer-name {
+      font-weight: 600;
+      color: var(--accent-color);
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .blog-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .blog-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <a href="/index.html" class="logo">
+        <span class="logo-icon">📝</span> BlogSpace
+      </a>
+      <nav class="nav-links">
+        <a href="/login.html" class="btn btn-secondary btn-small">Login</a>
+        <a href="/signup.html" class="btn btn-primary btn-small">Sign Up</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main-container">
+
+    <!-- Hero -->
+    <section class="hero-section">
+      <h1 class="hero-title">Blog Section</h1>
+      <p class="hero-subtitle">
+        Discover the latest trends and insights in design and technology.
+      </p>
+    </section>
+
+    <!-- Divider -->
+    <div style="height:1px;background:linear-gradient(to right,transparent,var(--border),transparent);margin:0 0 32px;"></div>
+
+    <!-- Blog Grid -->
+    <section class="blog-grid" id="posts-container"></section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    Built with ❤️ by <span class="footer-name">Swathi</span>
+  </footer>
+
+  <!-- Script -->
+  <script>
+    const blogs = [
+      { title: 'Design Systems That Scale', description: 'Learn how to build scalable design systems that empower teams.', image: 'https://picsum.photos/seed/1/640/360', date: '2025-08-25', author: 'Ava Mitchell', read: '7 min read' },
+      { title: 'Psychology of Color in UI', description: 'How colors influence emotion and user behavior.', image: 'https://picsum.photos/seed/2/640/360', date: '2025-07-14', author: 'Liam Carter', read: '5 min read' },
+      { title: 'Microinteractions That Delight', description: 'Small animations that make interfaces feel alive.', image: 'https://picsum.photos/seed/3/640/360', date: '2025-06-30', author: 'Sophia Kim', read: '6 min read' },
+      { title: 'Accessibility Beyond Compliance', description: 'Designing inclusive interfaces for everyone.', image: 'https://picsum.photos/seed/4/640/360', date: '2025-06-18', author: 'Ethan Rodriguez', read: '8 min read' },
+      { title: 'Dark Mode Done Right', description: 'Creating beautiful dark mode experiences.', image: 'https://picsum.photos/seed/5/640/360', date: '2025-05-20', author: 'Maya Chen', read: '4 min read' },
+      { title: 'Typography That Speaks', description: 'Choosing fonts that enhance clarity and brand.', image: 'https://picsum.photos/seed/6/640/360', date: '2025-05-02', author: 'Noah Patel', read: '9 min read' }
+    ];
+
+    const container = document.getElementById("posts-container");
+
+    container.innerHTML = blogs.map(blog => `
+      <div class="blog-card">
+        <div class="blog-card-image">
+          <img src="${blog.image}" alt="${blog.title}">
+        </div>
+        <div class="blog-card-content">
+          <div class="blog-meta">
+            <span>by ${blog.author}</span>
+            <span class="blog-meta-separator"></span>
+            <span>${blog.read}</span>
+          </div>
+          <h3 class="blog-card-title">${blog.title}</h3>
+          <p class="blog-card-description">${blog.description}</p>
+          <div class="blog-card-footer">
+            <div class="blog-author">
+              <div class="author-avatar">${blog.author[0]}</div>
+              <span class="author-name">${blog.author}</span>
+            </div>
+            <span class="blog-date">${blog.date}</span>
+          </div>
+        </div>
+      </div>
+    `).join("");
+  </script>
+
+</body>
+</html>

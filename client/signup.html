@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up - BlogSpace</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <a href="/index.html" class="logo">
+        <span class="logo-icon">📝</span>
+        BlogSpace
+      </a>
+      <nav class="nav-links">
+        <a href="/login.html" class="btn btn-secondary btn-small">Login</a>
+        <a href="/signup.html" class="btn btn-primary btn-small">Sign Up</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <div class="auth-container">
+      <div class="auth-card">
+        <h1 class="auth-title">Create Account</h1>
+        <p class="auth-subtitle">Join BlogSpace and start sharing</p>
+        
+        <div id="alert-container"></div>
+        
+        <form id="signup-form">
+          <div class="form-group">
+            <label class="form-label" for="username">Username</label>
+            <input type="text" id="username" class="form-input" placeholder="Choose a username" required minlength="3">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" for="email">Email</label>
+            <input type="email" id="email" class="form-input" placeholder="Enter your email" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <input type="password" id="password" class="form-input" placeholder="Choose a password (min 6 characters)" required minlength="6">
+          </div>
+          
+          <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+        </form>
+        
+        <p class="auth-footer">
+          Already have an account? <a href="/login.html">Login</a>
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Check if already logged in
+      if (api.isAuthenticated()) {
+        window.location.href = '/dashboard.html';
+        return;
+      }
+
+      // Handle form submission
+      document.getElementById('signup-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        var username = document.getElementById('username').value.trim();
+        var email = document.getElementById('email').value.trim();
+        var password = document.getElementById('password').value;
+        var submitBtn = e.target.querySelector('button[type="submit"]');
+        var alertContainer = document.getElementById('alert-container');
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating account...';
+        
+        api.signup(username, email, password).then(function(result) {
+          if (result.success) {
+            alertContainer.innerHTML = '<div class="alert alert-success">Account created! Redirecting...</div>';
+            setTimeout(function() {
+              window.location.href = '/dashboard.html';
+            }, 1000);
+          } else {
+            alertContainer.innerHTML = '<div class="alert alert-error">' + result.error + '</div>';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Account';
+          }
+        }).catch(function(error) {
+          alertContainer.innerHTML = '<div class="alert alert-error">' + error.message + '</div>';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Create Account';
+        });
+      });
+    });
+  </script>
+</body>
+</html>
+
